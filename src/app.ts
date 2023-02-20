@@ -15,7 +15,7 @@ if (statusCheckCmd === undefined || API_KEY === undefined) {
 	process.exit(-1);
 }
 
-const post = bent('https://betteruptime.com/', 'json', 'POST', 200, {
+const post = bent('https://betteruptime.com/', 'json', 'POST', 201, {
 	Content_Type: 'application/json',
 	Authorization: `Bearer ${API_KEY}`,
 });
