@@ -1,6 +1,6 @@
 # node-monitor
 
-Simple Node Monitoring Tool for Better Uptime.
+Simple initia node Monitoring Tool for Better Uptime.
 
 
 ## Setup
