@@ -7,11 +7,16 @@ import { Promise as P } from 'bluebird';
 dotenv.config();
 
 const app = express();
-const port = Number.parseInt(process.env.PORT) || 3000;
-const statusCheckCmd = process.env.STATUS_CHECK_CMD;
-const API_KEY = process.env.API_KEY;
-if (statusCheckCmd === undefined || API_KEY === undefined) {
-	console.error('required envs are not set properly');
+const port = Number.parseInt(process.env.PORT || '3000');
+const statusCheckCmd = process.env.STATUS_CHECK_CMD || '';
+if (statusCheckCmd.length === 0) {
+	console.error('`STATUS_CHECK_CMD` env is not set properly');
+	process.exit(-1);
+}
+
+const API_KEY = process.env.API_KEY || '';
+if (API_KEY.length === 0) {
+	console.error('`API_KEY` env is not set properly');
 	process.exit(-1);
 }
 
