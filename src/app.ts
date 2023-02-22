@@ -28,6 +28,8 @@ const post = bent('https://betteruptime.com/', 'json', 'POST', 201, {
 	Authorization: `Bearer ${API_KEY}`,
 });
 
+const get = bent('https://betteruptime.com/', 'GET', 200);
+
 class InitiaMonitor {
 	statusMap: Map<string, number>;
 
@@ -73,7 +75,7 @@ class InitiaMonitor {
 				this.statusMap[key] = height;
 			}
 
-			await post(`api/v1/heartbeat/${HEARTBEAT_KEY}`);
+			await get(`api/v1/heartbeat/${HEARTBEAT_KEY}`);
 			await P.delay(30 * 1000); // sleep 30s
 		}
 	}
