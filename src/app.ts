@@ -1,13 +1,10 @@
 import dotenv from 'dotenv';
-import express from 'express';
 import { exec } from 'shelljs';
 import bent from 'bent';
 import { Promise as P } from 'bluebird';
 
 dotenv.config();
 
-const app = express();
-const port = Number.parseInt(process.env.PORT || '3000');
 const statusCheckCmd = process.env.STATUS_CHECK_CMD || '';
 if (statusCheckCmd.length === 0) {
 	console.error('`STATUS_CHECK_CMD` env is not set properly');
@@ -17,6 +14,12 @@ if (statusCheckCmd.length === 0) {
 const API_KEY = process.env.API_KEY || '';
 if (API_KEY.length === 0) {
 	console.error('`API_KEY` env is not set properly');
+	process.exit(-1);
+}
+
+const HEARTBEAT_KEY = process.env.HEARTBEAT_KEY || '';
+if (HEARTBEAT_KEY.length === 0) {
+	console.error('`HEARTBEAT_KEY` env is not set properly');
 	process.exit(-1);
 }
 
@@ -33,7 +36,7 @@ class InitiaMonitor {
 	}
 
 	async check() {
-		for(;;) {
+		for (;;) {
 			const res = exec(statusCheckCmd);
 			if (res.code !== 0) {
 				await post('api/v2/incidents', {
@@ -47,10 +50,11 @@ class InitiaMonitor {
 					call: false,
 					sms: false,
 				});
-    
+
+				await P.delay(5 * 60 * 1_000); // sleep 5m
 				return;
 			}
-    
+
 			const resJSON = JSON.parse(res.stdout.toString());
 			for (const key in resJSON) {
 				const height = Number.parseInt(resJSON[key]);
@@ -65,22 +69,15 @@ class InitiaMonitor {
 						sms: false,
 					});
 				}
-    
+
 				this.statusMap[key] = height;
 			}
-    
-			await P.delay(30_000);
+
+			await post(`api/v1/heartbeat/${HEARTBEAT_KEY}`);
+			await P.delay(30 * 1000); // sleep 30s
 		}
 	}
 }
-
-app.get('/health', (_req, res) => {
-	res.json({ health: true });
-});
-
-app.listen(port, () => {
-	return console.log(`Listening at http://0.0.0.0:${port}`);
-});
 
 const monitor = new InitiaMonitor();
 monitor
