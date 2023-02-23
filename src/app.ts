@@ -1,31 +1,23 @@
-import dotenv from 'dotenv';
+import config from './config';
 import { exec } from 'shelljs';
 import bent from 'bent';
 import { Promise as P } from 'bluebird';
+import axios, { AxiosResponse } from 'axios';
 
-dotenv.config();
 
-const statusCheckCmd = process.env.STATUS_CHECK_CMD || '';
-if (statusCheckCmd.length === 0) {
-	console.error('`STATUS_CHECK_CMD` env is not set properly');
-	process.exit(-1);
-}
-
-const API_KEY = process.env.API_KEY || '';
-if (API_KEY.length === 0) {
-	console.error('`API_KEY` env is not set properly');
-	process.exit(-1);
-}
-
-const HEARTBEAT_KEY = process.env.HEARTBEAT_KEY || '';
-if (HEARTBEAT_KEY.length === 0) {
-	console.error('`HEARTBEAT_KEY` env is not set properly');
-	process.exit(-1);
+async function getHttpRequest(url: string): Promise<AxiosResponse> {
+	// eslint-disable-next-line no-useless-catch
+	try {
+		const response = await axios.get(url);
+		return response;
+	} catch (error) {
+		throw error;
+	}
 }
 
 const post = bent('https://betteruptime.com/', 'json', 'POST', 201, {
 	Content_Type: 'application/json',
-	Authorization: `Bearer ${API_KEY}`,
+	Authorization: `Bearer ${config.BETTERUPTIME_KEY}`,
 });
 
 const get = bent('https://betteruptime.com/', 'GET', 200);
@@ -36,48 +28,72 @@ class InitiaMonitor {
 	constructor() {
 		this.statusMap = new Map();
 	}
+	async postIncident(name, summary, description) {
+		await post('api/v2/incidents', {
+			requester_email: 'specter@initia.co',
+			name: name,
+			summary,
+			description,
+			email: true,
+			call: false,
+			sms: false,
+		});
+	}
+	async apiCheck(){
+		try {
+			const url =  config.API_ENDPOINT_URL +'/health';
+			const res = await getHttpRequest(url);
+			if (res.status != 200){
+				await this.postIncident('api monitoring', 'api is not healthy', `api is not healthy with status code ${res.status}`);
+				return;
+			}
+			console.log("api ok")
+		} catch (err) {
+			console.error("apiCheck err");
+		}
+		
+	}
 
 	async check() {
-		for (;;) {
-			const res = exec(statusCheckCmd);
+		for (;;){
+			await P.all([
+				P.delay(1 * 1000).then(this.nodeCheck),
+				P.delay(1 * 1000).then(this.apiCheck),
+				P.delay(1 * 1000).then(this.heartbeatCheck)
+			]);
+		}
+	}
+	async nodeCheck() {
+		try {
+			// node status check
+			const res = exec(config.STATUS_CHECK_CMD);
 			if (res.code !== 0) {
-				await post('api/v2/incidents', {
-					requester_email: 'monitoring@initia.co',
-					name: 'node monitoring',
-					summary: 'failed to execute status check script',
-					description: `failed to execute status check script with \n
-                    code: ${res.code}, \n 
-                    stderr: ${res.stderr} \n`,
-					email: true,
-					call: false,
-					sms: false,
-				});
-
+				await this.postIncident('node monitoring', 'failed to execute status check script', `failed to execute status check script with \n
+					code: ${res.code}, \n
+					stderr: ${res.stderr} \n`);
 				await P.delay(5 * 60 * 1_000); // sleep 5m
 				return;
 			}
 
+			// block sync check
 			const resJSON = JSON.parse(res.stdout.toString());
 			for (const key in resJSON) {
 				const height = Number.parseInt(resJSON[key]);
 				if (this.statusMap[key] === height) {
-					await post('api/v2/incidents', {
-						requester_email: 'monitoring@initia.co',
-						name: 'node monitoring',
-						summary: 'block sync halted',
-						description: `"${key}" block sync halted at the height "${height}"`,
-						email: true,
-						call: false,
-						sms: false,
-					});
+					await this.postIncident('node monitoring', 'block sync halted', `"${key}" block sync halted at the height "${height}"`);
 				}
 
 				this.statusMap[key] = height;
 			}
 
-			await get(`api/v1/heartbeat/${HEARTBEAT_KEY}`);
-			await P.delay(30 * 1000); // sleep 30s
+			console.log("node ok")
+		} catch (err) {
+			console.error("nodeCheck err");
 		}
+		
+	}
+	async heartbeatCheck() {
+		await get(`api/v1/heartbeat/${config.HEARTBEAT_KEY}`);
 	}
 }
 
@@ -86,7 +102,5 @@ monitor
 	.check()
 	.then(() => {
 		console.info('program exits');
-	})
-	.catch(async (err) => {
-		console.error(err, await err.text());
 	});
+
