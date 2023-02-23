@@ -11,7 +11,16 @@ cp ./.env_example ./.env
 nano ./.env
 ```
 
+| Name            | Description                                            | Default                          |
+| --------------- | ------------------------------------------------------ | -------------------------------- |
+| BETTERUPTIME_KEY| BetterUpTime API key                                   |                                  |
+| HEARTBEAT_KEY   | BetterUpTime Heartbeat key                             |                                  |
+| STATUS_CHECK_CMD| Node status check command                              |                                  |
+| API_ENDPOINT_URL| Initia API endpoint                                    |                                  |
+
+
 ## How to run
 ```
 npm start
 ```
+
