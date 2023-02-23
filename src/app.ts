@@ -57,9 +57,9 @@ class InitiaMonitor {
 	async check() {
 		for (;;){
 			await P.all([
-				P.delay(1 * 1000).then(this.nodeCheck),
-				P.delay(1 * 1000).then(this.apiCheck),
-				P.delay(1 * 1000).then(this.heartbeatCheck)
+				P.delay(30 * 1_000).then(this.nodeCheck),
+				P.delay(30 * 1_000).then(this.apiCheck),
+				P.delay(30 * 1_000).then(this.heartbeatCheck)
 			]);
 		}
 	}
